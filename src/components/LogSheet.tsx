@@ -9,11 +9,8 @@ interface LogSheetProps {
 }
 
 const HOURS_IN_DAY = 24;
-const CANVAS_WIDTH = 800;
-const CANVAS_HEIGHT = 200;
-const GRID_START_Y = 50;
 const GRID_HEIGHT = 100;
-const HOUR_WIDTH = CANVAS_WIDTH / HOURS_IN_DAY;
+const GRID_START_Y = 50;
 
 const getStatusColor = (status: LogEntry["status"]) => {
   switch (status) {
@@ -45,11 +42,16 @@ export const LogSheet: React.FC<LogSheetProps> = ({ logs, date }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const theme = useTheme();
   const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
+  const isTablet = useMediaQuery(theme.breakpoints.down("md"));
 
-  const drawGrid = (ctx: CanvasRenderingContext2D) => {
+  const drawGrid = (ctx: CanvasRenderingContext2D, canvasWidth: number) => {
+    const hourWidth = canvasWidth / HOURS_IN_DAY;
+    const fontSize = isMobile ? 10 : isTablet ? 11 : 12;
+    const labelWidth = isMobile ? 60 : 70; // Match the label width from useEffect
+
     ctx.strokeStyle = "#cbd5e1";
     ctx.lineWidth = 1;
-    ctx.font = "12px Inter, system-ui, sans-serif";
+    ctx.font = `${fontSize}px Inter, system-ui, sans-serif`;
     ctx.fillStyle = theme.palette.text.secondary;
 
     // Draw horizontal lines
@@ -57,13 +59,13 @@ export const LogSheet: React.FC<LogSheetProps> = ({ logs, date }) => {
     for (let i = 0; i <= 3; i++) {
       const y = GRID_START_Y + (i * GRID_HEIGHT) / 3;
       ctx.moveTo(0, y);
-      ctx.lineTo(CANVAS_WIDTH, y);
+      ctx.lineTo(canvasWidth, y);
     }
     ctx.stroke();
 
     // Draw vertical lines and hour markers
     for (let hour = 0; hour <= HOURS_IN_DAY; hour++) {
-      const x = hour * HOUR_WIDTH;
+      const x = hour * hourWidth;
 
       // Draw vertical line
       ctx.beginPath();
@@ -77,14 +79,17 @@ export const LogSheet: React.FC<LogSheetProps> = ({ logs, date }) => {
       }
     }
 
-    // Draw status labels
+    // Draw status labels with adjusted font size and position
     ctx.textAlign = "right";
-    ctx.fillText("OFF DUTY", -5, GRID_START_Y + GRID_HEIGHT / 6);
-    ctx.fillText("ON DUTY", -5, GRID_START_Y + GRID_HEIGHT / 2);
-    ctx.fillText("DRIVING", -5, GRID_START_Y + (5 * GRID_HEIGHT) / 6);
+    ctx.font = `${fontSize}px Inter, system-ui, sans-serif`;
+    ctx.fillText("OFF DUTY", -10, GRID_START_Y + GRID_HEIGHT / 6);
+    ctx.fillText("ON DUTY", -10, GRID_START_Y + GRID_HEIGHT / 2);
+    ctx.fillText("DRIVING", -10, GRID_START_Y + (5 * GRID_HEIGHT) / 6);
   };
 
-  const drawLogs = (ctx: CanvasRenderingContext2D) => {
+  const drawLogs = (ctx: CanvasRenderingContext2D, canvasWidth: number) => {
+    const hourWidth = canvasWidth / HOURS_IN_DAY;
+
     logs.forEach((log) => {
       const startTime = new Date(`${date}T${log.start_time}`);
       const endTime = new Date(`${date}T${log.end_time}`);
@@ -92,8 +97,8 @@ export const LogSheet: React.FC<LogSheetProps> = ({ logs, date }) => {
       const startHour = startTime.getHours() + startTime.getMinutes() / 60;
       const endHour = endTime.getHours() + endTime.getMinutes() / 60;
 
-      const startX = startHour * HOUR_WIDTH;
-      const width = (endHour - startHour) * HOUR_WIDTH;
+      const startX = startHour * hourWidth;
+      const width = (endHour - startHour) * hourWidth;
 
       let y = GRID_START_Y;
       switch (log.status) {
@@ -144,26 +149,30 @@ export const LogSheet: React.FC<LogSheetProps> = ({ logs, date }) => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Get container width
+    const containerWidth = canvas.parentElement?.clientWidth || 800;
+    const labelWidth = isMobile ? 60 : 70; // Adjust label width based on screen size
+    const canvasWidth = Math.max(containerWidth - 40, 400); // Minimum width of 400px
+    const canvasHeight = isMobile ? 180 : 200;
+
     // Set canvas scale for retina displays
     const dpr = window.devicePixelRatio || 1;
-    const rect = canvas.getBoundingClientRect();
-
-    canvas.width = rect.width * dpr;
-    canvas.height = rect.height * dpr;
+    canvas.width = (canvasWidth + labelWidth) * dpr; // Add label width to total canvas width
+    canvas.height = canvasHeight * dpr;
 
     ctx.scale(dpr, dpr);
-    canvas.style.width = `${rect.width}px`;
-    canvas.style.height = `${rect.height}px`;
+    canvas.style.width = `${canvasWidth + labelWidth}px`; // Add label width to canvas style width
+    canvas.style.height = `${canvasHeight}px`;
 
     // Clear canvas
-    ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
+    ctx.clearRect(0, 0, canvasWidth + labelWidth, canvasHeight);
 
-    // Add 40px padding for status labels
-    ctx.translate(40, 0);
+    // Add padding for status labels
+    ctx.translate(labelWidth, 0);
 
-    drawGrid(ctx);
-    drawLogs(ctx);
-  }, [logs, date, theme.palette.text.secondary]);
+    drawGrid(ctx, canvasWidth);
+    drawLogs(ctx, canvasWidth);
+  }, [logs, date, theme.palette.text.secondary, isMobile, isTablet]);
 
   return (
     <Paper
@@ -180,19 +189,21 @@ export const LogSheet: React.FC<LogSheetProps> = ({ logs, date }) => {
       <Typography
         variant="h6"
         gutterBottom
-        sx={{ color: theme.palette.text.primary, mb: 3 }}
+        sx={{
+          color: theme.palette.text.primary,
+          mb: 3,
+          fontSize: isMobile ? "1.1rem" : "1.25rem",
+        }}
       >
         Driver's Daily Log - {format(new Date(date), "MMMM d, yyyy")}
       </Typography>
       <Box sx={{ overflowX: "auto" }}>
         <canvas
           ref={canvasRef}
-          width={CANVAS_WIDTH + 40}
-          height={CANVAS_HEIGHT}
           style={{
             width: "100%",
-            maxWidth: CANVAS_WIDTH + 40,
             height: "auto",
+            display: "block",
           }}
         />
       </Box>
@@ -206,14 +217,18 @@ export const LogSheet: React.FC<LogSheetProps> = ({ logs, date }) => {
       >
         <Typography
           variant="subtitle2"
-          sx={{ color: theme.palette.text.secondary, mb: 1 }}
+          sx={{
+            color: theme.palette.text.secondary,
+            mb: 1,
+            fontSize: isMobile ? "0.75rem" : "0.875rem",
+          }}
         >
           Legend:
         </Typography>
         <Box
           sx={{
             display: "flex",
-            gap: 3,
+            gap: isMobile ? 2 : 3,
             flexWrap: "wrap",
           }}
         >
@@ -232,8 +247,8 @@ export const LogSheet: React.FC<LogSheetProps> = ({ logs, date }) => {
             >
               <Box
                 sx={{
-                  width: 20,
-                  height: 20,
+                  width: isMobile ? 16 : 20,
+                  height: isMobile ? 16 : 20,
                   bgcolor: getStatusColor(status as LogEntry["status"]),
                   border: "1.5px solid",
                   borderColor: getStatusBorderColor(
@@ -244,7 +259,10 @@ export const LogSheet: React.FC<LogSheetProps> = ({ logs, date }) => {
               />
               <Typography
                 variant="body2"
-                sx={{ color: theme.palette.text.primary }}
+                sx={{
+                  color: theme.palette.text.primary,
+                  fontSize: isMobile ? "0.75rem" : "0.875rem",
+                }}
               >
                 {label}
               </Typography>
