@@ -1,6 +1,6 @@
 import React, { useRef, useEffect } from "react";
 import { format } from "date-fns";
-import { Paper, Typography, Box } from "@mui/material";
+import { Paper, Typography, Box, useTheme, useMediaQuery } from "@mui/material";
 import { LogEntry } from "../types";
 
 interface LogSheetProps {
@@ -18,20 +18,40 @@ const HOUR_WIDTH = CANVAS_WIDTH / HOURS_IN_DAY;
 const getStatusColor = (status: LogEntry["status"]) => {
   switch (status) {
     case "OFF_DUTY":
-      return "#ffffff";
+      return "#e2e8f0";
     case "ON_DUTY":
-      return "#ffeb3b";
+      return "#fef08a";
     case "DRIVING":
-      return "#4caf50";
+      return "#86efac";
     default:
-      return "#ffffff";
+      return "#e2e8f0";
+  }
+};
+
+const getStatusBorderColor = (status: LogEntry["status"]) => {
+  switch (status) {
+    case "OFF_DUTY":
+      return "#94a3b8";
+    case "ON_DUTY":
+      return "#ca8a04";
+    case "DRIVING":
+      return "#16a34a";
+    default:
+      return "#94a3b8";
   }
 };
 
 export const LogSheet: React.FC<LogSheetProps> = ({ logs, date }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const theme = useTheme();
+  const isMobile = useMediaQuery(theme.breakpoints.down("sm"));
 
   const drawGrid = (ctx: CanvasRenderingContext2D) => {
+    ctx.strokeStyle = "#cbd5e1";
+    ctx.lineWidth = 1;
+    ctx.font = "12px Inter, system-ui, sans-serif";
+    ctx.fillStyle = theme.palette.text.secondary;
+
     // Draw horizontal lines
     ctx.beginPath();
     for (let i = 0; i <= 3; i++) {
@@ -56,6 +76,12 @@ export const LogSheet: React.FC<LogSheetProps> = ({ logs, date }) => {
         ctx.fillText(hour.toString().padStart(2, "0"), x + 2, GRID_START_Y - 5);
       }
     }
+
+    // Draw status labels
+    ctx.textAlign = "right";
+    ctx.fillText("OFF DUTY", -5, GRID_START_Y + GRID_HEIGHT / 6);
+    ctx.fillText("ON DUTY", -5, GRID_START_Y + GRID_HEIGHT / 2);
+    ctx.fillText("DRIVING", -5, GRID_START_Y + (5 * GRID_HEIGHT) / 6);
   };
 
   const drawLogs = (ctx: CanvasRenderingContext2D) => {
@@ -82,9 +108,32 @@ export const LogSheet: React.FC<LogSheetProps> = ({ logs, date }) => {
           break;
       }
 
+      // Draw status block with rounded corners
+      ctx.beginPath();
+      const radius = 4;
+      const height = GRID_HEIGHT / 3;
+
+      ctx.moveTo(startX + radius, y);
+      ctx.lineTo(startX + width - radius, y);
+      ctx.quadraticCurveTo(startX + width, y, startX + width, y + radius);
+      ctx.lineTo(startX + width, y + height - radius);
+      ctx.quadraticCurveTo(
+        startX + width,
+        y + height,
+        startX + width - radius,
+        y + height
+      );
+      ctx.lineTo(startX + radius, y + height);
+      ctx.quadraticCurveTo(startX, y + height, startX, y + height - radius);
+      ctx.lineTo(startX, y + radius);
+      ctx.quadraticCurveTo(startX, y, startX + radius, y);
+
       ctx.fillStyle = getStatusColor(log.status);
-      ctx.fillRect(startX, y, width, GRID_HEIGHT / 3);
-      ctx.strokeRect(startX, y, width, GRID_HEIGHT / 3);
+      ctx.fill();
+
+      ctx.strokeStyle = getStatusBorderColor(log.status);
+      ctx.lineWidth = 1.5;
+      ctx.stroke();
     });
   };
 
@@ -95,73 +144,112 @@ export const LogSheet: React.FC<LogSheetProps> = ({ logs, date }) => {
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
 
+    // Set canvas scale for retina displays
+    const dpr = window.devicePixelRatio || 1;
+    const rect = canvas.getBoundingClientRect();
+
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+
+    ctx.scale(dpr, dpr);
+    canvas.style.width = `${rect.width}px`;
+    canvas.style.height = `${rect.height}px`;
+
     // Clear canvas
     ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
 
-    // Set up styles
-    ctx.strokeStyle = "#000000";
-    ctx.lineWidth = 1;
-    ctx.font = "12px Arial";
+    // Add 40px padding for status labels
+    ctx.translate(40, 0);
 
-    // Draw grid and logs
     drawGrid(ctx);
     drawLogs(ctx);
-  }, [logs, date]);
+  }, [logs, date, theme.palette.text.secondary]);
 
   return (
-    <Paper elevation={3} sx={{ p: 3, my: 2 }}>
-      <Typography variant="h6" gutterBottom>
-        Driver's Daily Log - {format(new Date(date), "MM/dd/yyyy")}
+    <Paper
+      elevation={0}
+      sx={{
+        p: isMobile ? 2 : 3,
+        my: 2,
+        background: "rgba(255, 255, 255, 0.9)",
+        backdropFilter: "blur(10px)",
+        border: "1px solid",
+        borderColor: "rgba(148, 163, 184, 0.1)",
+      }}
+    >
+      <Typography
+        variant="h6"
+        gutterBottom
+        sx={{ color: theme.palette.text.primary, mb: 3 }}
+      >
+        Driver's Daily Log - {format(new Date(date), "MMMM d, yyyy")}
       </Typography>
       <Box sx={{ overflowX: "auto" }}>
         <canvas
           ref={canvasRef}
-          width={CANVAS_WIDTH}
+          width={CANVAS_WIDTH + 40}
           height={CANVAS_HEIGHT}
-          style={{ width: "100%", maxWidth: CANVAS_WIDTH }}
+          style={{
+            width: "100%",
+            maxWidth: CANVAS_WIDTH + 40,
+            height: "auto",
+          }}
         />
       </Box>
-      <Box sx={{ mt: 2 }}>
-        <Typography variant="subtitle2" gutterBottom>
+      <Box
+        sx={{
+          mt: 3,
+          pt: 2,
+          borderTop: "1px solid",
+          borderColor: "rgba(148, 163, 184, 0.1)",
+        }}
+      >
+        <Typography
+          variant="subtitle2"
+          sx={{ color: theme.palette.text.secondary, mb: 1 }}
+        >
           Legend:
         </Typography>
-        <Box sx={{ display: "flex", gap: 2 }}>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
+        <Box
+          sx={{
+            display: "flex",
+            gap: 3,
+            flexWrap: "wrap",
+          }}
+        >
+          {[
+            { status: "OFF_DUTY", label: "Off Duty" },
+            { status: "ON_DUTY", label: "On Duty" },
+            { status: "DRIVING", label: "Driving" },
+          ].map(({ status, label }) => (
             <Box
+              key={status}
               sx={{
-                width: 20,
-                height: 20,
-                bgcolor: "#ffffff",
-                border: "1px solid black",
-                mr: 1,
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
               }}
-            />
-            <Typography variant="body2">Off Duty</Typography>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Box
-              sx={{
-                width: 20,
-                height: 20,
-                bgcolor: "#ffeb3b",
-                border: "1px solid black",
-                mr: 1,
-              }}
-            />
-            <Typography variant="body2">On Duty</Typography>
-          </Box>
-          <Box sx={{ display: "flex", alignItems: "center" }}>
-            <Box
-              sx={{
-                width: 20,
-                height: 20,
-                bgcolor: "#4caf50",
-                border: "1px solid black",
-                mr: 1,
-              }}
-            />
-            <Typography variant="body2">Driving</Typography>
-          </Box>
+            >
+              <Box
+                sx={{
+                  width: 20,
+                  height: 20,
+                  bgcolor: getStatusColor(status as LogEntry["status"]),
+                  border: "1.5px solid",
+                  borderColor: getStatusBorderColor(
+                    status as LogEntry["status"]
+                  ),
+                  borderRadius: "4px",
+                }}
+              />
+              <Typography
+                variant="body2"
+                sx={{ color: theme.palette.text.primary }}
+              >
+                {label}
+              </Typography>
+            </Box>
+          ))}
         </Box>
       </Box>
     </Paper>

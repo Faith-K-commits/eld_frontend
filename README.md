@@ -1,4 +1,4 @@
-# ELD Trip Planner Frontend
+# TruckLog Pro
 
 A React-based frontend application for planning trips and generating Electronic Logging Device (ELD) logs. This application helps truck drivers plan their routes and automatically generates ELD logs based on Hours of Service (HOS) regulations.
 
@@ -22,7 +22,7 @@ A React-based frontend application for planning trips and generating Electronic 
 1. Clone the repository:
 
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/Faith-K-commits/eld_frontend
    cd eld-frontend
    ```
 
@@ -78,15 +78,3 @@ The application follows these HOS regulations:
 - 70-hour/8-day limit
 - Required fuel stops every 1,000 miles
 - 1-hour allocation for pickup and dropoff activities
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Commit your changes
-4. Push to the branch
-5. Create a Pull Request
-
-## License
-
-MIT License
