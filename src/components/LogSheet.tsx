@@ -47,7 +47,6 @@ export const LogSheet: React.FC<LogSheetProps> = ({ logs, date }) => {
   const drawGrid = (ctx: CanvasRenderingContext2D, canvasWidth: number) => {
     const hourWidth = canvasWidth / HOURS_IN_DAY;
     const fontSize = isMobile ? 10 : isTablet ? 11 : 12;
-    const labelWidth = isMobile ? 60 : 70; // Match the label width from useEffect
 
     ctx.strokeStyle = "#cbd5e1";
     ctx.lineWidth = 1;
